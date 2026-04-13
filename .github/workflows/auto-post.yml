@@ -1,13 +1,82 @@
-{
-  "name": "newswave-auto",
-  "version": "1.0.0",
-  "description": "News Wave Auto Post System",
-  "main": "fetch-news.js",
-  "scripts": {
-    "fetch": "node fetch-news.js"
-  },
-  "dependencies": {
-    "rss-parser": "^3.13.0",
-    "node-fetch": "^2.7.0"
+// ============================================================
+// NEWS WAVE — Auto Post System
+// Fetches: Google News, BBC, CNN, Reuters, Times of India
+// AI Rewrite: Google Gemini (Free API)
+// Images: Pollinations.ai (100% Free, No Key Needed)
+// Runs: 7 AM, 1 PM, 6 PM IST daily
+// ============================================================
+
+const Parser = require('rss-parser');
+const fetch = require('node-fetch');
+const fs = require('fs');
+
+const parser = new Parser({
+  timeout: 10000,
+  headers: { 'User-Agent': 'NewsWave/1.0' }
+});
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+// ── All News Sources ──
+const RSS_SOURCES = [
+  // Google News
+  { name: 'Google News India',    url: 'https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en',          cat: 'News' },
+  { name: 'Google News World',    url: 'https://news.google.com/rss?hl=en&gl=US&ceid=US:en',              cat: 'World' },
+  { name: 'Google Trends India',  url: 'https://trends.google.com/trends/trendingsearches/daily/rss?geo=IN', cat: 'Trending' },
+  // BBC
+  { name: 'BBC World',            url: 'https://feeds.bbci.co.uk/news/world/rss.xml',                     cat: 'World' },
+  { name: 'BBC Technology',       url: 'https://feeds.bbci.co.uk/news/technology/rss.xml',                cat: 'Tech' },
+  { name: 'BBC Business',         url: 'https://feeds.bbci.co.uk/news/business/rss.xml',                  cat: 'Business' },
+  { name: 'BBC India',            url: 'https://feeds.bbci.co.uk/news/world/asia/india/rss.xml',          cat: 'India' },
+  // CNN
+  { name: 'CNN Top Stories',      url: 'http://rss.cnn.com/rss/edition.rss',                              cat: 'World' },
+  { name: 'CNN Technology',       url: 'http://rss.cnn.com/rss/edition_technology.rss',                   cat: 'Tech' },
+  { name: 'CNN Business',         url: 'http://rss.cnn.com/rss/money_latest.rss',                         cat: 'Business' },
+  // Reuters
+  { name: 'Reuters World',        url: 'https://feeds.reuters.com/reuters/worldNews',                     cat: 'World' },
+  { name: 'Reuters Business',     url: 'https://feeds.reuters.com/reuters/businessNews',                  cat: 'Business' },
+  { name: 'Reuters Technology',   url: 'https://feeds.reuters.com/reuters/technologyNews',                cat: 'Tech' },
+  // Times of India
+  { name: 'TOI Top Stories',      url: 'https://timesofindia.indiatimes.com/rssfeedstopstories.cms',      cat: 'India' },
+  { name: 'TOI India',            url: 'https://timesofindia.indiatimes.com/rssfeeds/296589292.cms',      cat: 'India' },
+  { name: 'TOI Business',         url: 'https://timesofindia.indiatimes.com/rssfeeds/1898055.cms',        cat: 'Business' },
+  // Hindustan Times
+  { name: 'HT India',             url: 'https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml', cat: 'India' },
+  // NDTV
+  { name: 'NDTV India',           url: 'https://feeds.feedburner.com/ndtvnews-top-stories',               cat: 'India' },
+];
+
+// ── Category Colors ──
+const CAT_COLORS = {
+  'News': '#1a6fa0', 'World': '#1a6fa0', 'India': '#c0392b',
+  'Tech': '#2e7d32', 'Business': '#004d6d', 'Trending': '#7c3aed',
+  'Fashion': '#c2185b', 'Travel': '#e65100', 'Video': '#6a1b9a'
+};
+
+// ── Session Time ──
+function getTimeOfDay() {
+  const hour = new Date().getUTCHours();
+  const istHour = (hour + 5) % 24 + (new Date().getUTCMinutes() >= 30 ? 0 : 0);
+  const istH = (hour * 60 + 30 + new Date().getUTCMinutes()) / 60 % 24;
+  if (istH >= 5 && istH < 12) return 'Morning';
+  if (istH >= 12 && istH < 17) return 'Afternoon';
+  return 'Evening';
+}
+
+// ── Fetch RSS with timeout ──
+async function fetchRSS(source) {
+  try {
+    const feed = await parser.parseURL(source.url);
+    const items = (feed.items || []).slice(0, 2); // 2 articles per source
+    return items.map(item => ({
+      title: item.title || '',
+      snippet: item.contentSnippet  item.summary  item.content || '',
+      link: item.link || '',
+      source: source.name,
+      cat: source.cat
+    }));
+  } catch (e) {
+    console.log(Skipped ${source.name}: ${e.message});
+    return [];
   }
 }
